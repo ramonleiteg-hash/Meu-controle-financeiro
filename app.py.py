@@ -52,6 +52,25 @@ with st.sidebar:
             else:
                 st.error("Preencha a descrição e insira um valor.")
 
+    # --- NOVA SEÇÃO DE MANUTENÇÃO ---
+    st.divider()
+    st.header("⚙️ Manutenção do Sistema")
+    
+    if st.button("⏪ Desfazer Último Lançamento", use_container_width=True):
+        if not st.session_state['dados'].empty:
+            # Seleciona todas as linhas, exceto a última
+            st.session_state['dados'] = st.session_state['dados'].iloc[:-1] 
+            st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
+            st.rerun() # Atualiza a tela imediatamente
+        else:
+            st.warning("A planilha já está vazia.")
+            
+    if st.button("🗑️ Apagar TODOS os Dados", use_container_width=True):
+        # Recria a estrutura da planilha totalmente em branco
+        st.session_state['dados'] = pd.DataFrame(columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
+        st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
+        st.rerun()
+
 df = st.session_state['dados']
 
 if not df.empty:
