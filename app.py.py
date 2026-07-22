@@ -37,36 +37,37 @@ if not df_base.empty:
 with st.sidebar:
     st.header("Adicionar Registro")
     
-    # Interruptor principal (fica fora do formulário para atualizar as categorias na hora)
-    tipo_selecionado = st.radio("Selecione o Tipo:", ["Despesa", "Receita"], horizontal=True)
-
-    with st.form("formulario_lancamento", clear_on_submit=True):
-        data_input = st.date_input("Data do Lançamento", format="DD/MM/YYYY")
+    # Sem o st.form, as mudanças aqui atualizam o resto na mesma hora!
+    data_input = st.date_input("Data do Lançamento", format="DD/MM/YYYY")
+    tipo = st.selectbox("Tipo", ["Despesa", "Receita"])
+    
+    # Lógica inteligente para mudar categorias E o texto da descrição
+    if tipo == "Despesa":
+        lista_categorias = ["Água", "Energia", "Manutenção do Carro", "Compras", "Lazer", "Alimentação", "Pets", "Casa", "Outros"]
+        texto_exemplo = "Ex: Pneus aro 13, Ração, Conta de luz"
+    else:
+        lista_categorias = ["Salário", "Renda Extra", "Investimentos", "Outros"]
+        texto_exemplo = "Ex: Pagamento mensal, Horas extras"
         
-        # O sistema troca a lista de categorias dependendo do botão escolhido acima
-        if tipo_selecionado == "Despesa":
-            lista_categorias = ["Água", "Energia", "Manutenção do Carro", "Compras", "Lazer", "Alimentação", "Pets", "Casa", "Outros"]
-        else:
-            lista_categorias = ["Salário", "Renda Extra", "Investimentos", "Outros"]
+    categoria = st.selectbox("Categoria", lista_categorias)
+    desc = st.text_input(f"Descrição ({texto_exemplo})")
+    valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
+
+    # Botão padrão (substitui o antigo form_submit_button)
+    cadastrar = st.button("Registrar Lançamento", use_container_width=True)
+
+    if cadastrar:
+        if desc and valor > 0:
+            data_formatada = data_input.strftime("%d/%m/%Y")
             
-        categoria = st.selectbox("Categoria", lista_categorias)
-        desc = st.text_input("Descrição (Ex: Troca de óleo, Ração, Supermercado)")
-        valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
-
-        cadastrar = st.form_submit_button("Registrar Lançamento")
-
-        if cadastrar:
-            if desc and valor > 0:
-                data_formatada = data_input.strftime("%d/%m/%Y")
-                
-                novo_dado = pd.DataFrame([[data_formatada, tipo_selecionado, categoria, desc, valor]], columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
-                st.session_state['dados'] = pd.concat([st.session_state['dados'], novo_dado], ignore_index=True)
-                st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
-                
-                st.success("Lançamento salvo com sucesso!")
-                st.rerun() 
-            else:
-                st.error("Preencha a descrição e insira um valor.")
+            novo_dado = pd.DataFrame([[data_formatada, tipo, categoria, desc, valor]], columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
+            st.session_state['dados'] = pd.concat([st.session_state['dados'], novo_dado], ignore_index=True)
+            st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
+            
+            st.success("Lançamento salvo com sucesso!")
+            st.rerun() 
+        else:
+            st.error("Preencha a descrição e insira um valor.")
 
     st.divider()
     st.header("🔎 Filtros")
@@ -147,4 +148,4 @@ if not df_filtrado.empty:
         st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
 
 else:
-    st.info("Nenhum dado encontrado. Faça seu primeiro lançamento usando o formulário à esquerda.")
+    st.info("Nenhum dado encontrado. Faça seu primeiro lançamento usando a barra lateral à esquerda.")
