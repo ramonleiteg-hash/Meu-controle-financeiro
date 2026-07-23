@@ -37,10 +37,7 @@ if not df_base.empty:
 with st.sidebar:
     st.header("Adicionar Registro")
     
-    # Adicionado ícone. Lembre-se: basta clicar na caixa de texto para abrir o calendário visual!
     data_input = st.date_input("🗓️ Data do Lançamento", format="DD/MM/YYYY")
-    
-    # Substituição da lista suspensa por botões estilo "Cards"
     tipo_selecionado = st.radio("Tipo de Registro:", ["🔴 Despesa", "🟢 Receita"], horizontal=True)
     
     if tipo_selecionado == "🔴 Despesa":
@@ -62,7 +59,6 @@ with st.sidebar:
         
     categoria = st.selectbox("Categoria", lista_categorias)
     
-    # Dicas inteligentes de preenchimento
     if categoria == "🐾 Alimentação do Pet":
         texto_exemplo = "Ex: Ração para a cachorra, vacinas"
     elif categoria == "🚗 Manutenção de Carro/Moto":
@@ -122,6 +118,27 @@ with st.sidebar:
     st.divider()
     st.header("⚙️ Manutenção do Sistema")
     
+    # --- NOVA FERRAMENTA: EXCLUIR REGISTRO ESPECÍFICO ---
+    with st.expander("🎯 Excluir um lançamento específico"):
+        if not st.session_state['dados'].empty:
+            opcoes = []
+            for idx, row in st.session_state['dados'].iterrows():
+                # Formata a linha de uma forma fácil de ler, escondendo o ID no começo
+                texto = f"ID: {idx} | {row['Data']} - {row['Descrição']} (R$ {row['Valor']})"
+                opcoes.append(texto)
+            
+            registro_selecionado = st.selectbox("Escolha o registro para apagar:", opcoes)
+            
+            if st.button("❌ Apagar este registro", use_container_width=True):
+                # Pega apenas o número do ID selecionado para apagar a linha correta
+                id_para_apagar = int(registro_selecionado.split(" |")[0].replace("ID: ", ""))
+                st.session_state['dados'] = st.session_state['dados'].drop(id_para_apagar).reset_index(drop=True)
+                st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
+                st.rerun()
+        else:
+            st.info("Nenhum dado para excluir.")
+
+    # Botões antigos mantidos para operações rápidas
     if st.button("⏪ Desfazer Último", use_container_width=True):
         if not st.session_state['dados'].empty:
             st.session_state['dados'] = st.session_state['dados'].iloc[:-1] 
