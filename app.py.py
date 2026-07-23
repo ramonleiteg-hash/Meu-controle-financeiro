@@ -16,17 +16,19 @@ def carregar_dados():
         if 'Categoria' not in df_salvo.columns:
             df_salvo['Categoria'] = 'Outros'
             
+        # O sistema apaga a coluna antiga de 'Descrição' caso ela ainda esteja no seu arquivo
+        if 'Descrição' in df_salvo.columns:
+            df_salvo = df_salvo.drop(columns=['Descrição'])
+            
         return df_salvo
     else:
-        return pd.DataFrame(columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
+        return pd.DataFrame(columns=['Data', 'Tipo', 'Categoria', 'Valor'])
 
-# Título da aba do navegador
 st.set_page_config(page_title="Meu Controle Financeiro", layout="wide")
 
 if 'dados' not in st.session_state:
     st.session_state['dados'] = carregar_dados()
 
-# Título principal da tela COM o ícone do gráfico
 st.title("📊 Meu Controle Financeiro")
 
 df_base = st.session_state['dados'].copy()
@@ -61,38 +63,25 @@ with st.sidebar:
         
     categoria = st.selectbox("Categoria", lista_categorias)
     
-    if categoria == "🐾 Alimentação do Pet":
-        texto_exemplo = "Ex: Ração para a cachorra, vacinas"
-    elif categoria == "🚗 Manutenção de Carro/Moto":
-        texto_exemplo = "Ex: Pneus aro 13, óleo, combustível"
-    elif categoria == "🏠 Manutenção de Casa":
-        texto_exemplo = "Ex: Peças para micro-ondas LG, reparos"
-    elif categoria == "🛒 Compras":
-        texto_exemplo = "Ex: Supermercado, farmácia"
-    elif categoria in ["💧 Água", "⚡ Energia", "🌐 Internet"]:
-        texto_exemplo = "Ex: Mensalidade, fatura"
-    elif categoria == "💼 Salário":
-        texto_exemplo = "Ex: Pagamento mensal, adiantamento"
-    else:
-        texto_exemplo = "Descreva o lançamento"
-        
-    desc = st.text_input(f"Descrição ({texto_exemplo})")
+    # Campo "Descrição" foi totalmente removido daqui
+    
     valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
 
     cadastrar = st.button("Registrar Lançamento", use_container_width=True)
 
     if cadastrar:
-        if desc and valor > 0:
+        # Agora o sistema só exige que o valor seja preenchido
+        if valor > 0: 
             data_formatada = data_input.strftime("%d/%m/%Y")
             
-            novo_dado = pd.DataFrame([[data_formatada, tipo_str, categoria, desc, valor]], columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
+            novo_dado = pd.DataFrame([[data_formatada, tipo_str, categoria, valor]], columns=['Data', 'Tipo', 'Categoria', 'Valor'])
             st.session_state['dados'] = pd.concat([st.session_state['dados'], novo_dado], ignore_index=True)
             st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
             
             st.success("Lançamento salvo com sucesso!")
             st.rerun() 
         else:
-            st.error("Preencha a descrição e insira um valor.")
+            st.error("Insira um valor maior que zero para registrar.")
 
     st.divider()
     st.header("🔎 Filtros")
@@ -124,7 +113,8 @@ with st.sidebar:
         if not st.session_state['dados'].empty:
             opcoes = []
             for idx, row in st.session_state['dados'].iterrows():
-                texto = f"ID: {idx} | {row['Data']} - {row['Descrição']} (R$ {row['Valor']})"
+                # Menu de exclusão atualizado para usar a Categoria no lugar da Descrição
+                texto = f"ID: {idx} | {row['Data']} - {row['Categoria']} (R$ {row['Valor']})"
                 opcoes.append(texto)
             
             registro_selecionado = st.selectbox("Escolha o registro para apagar:", opcoes)
@@ -146,13 +136,12 @@ with st.sidebar:
             st.warning("A planilha já está vazia.")
             
     if st.button("🗑️ Apagar Tudo", use_container_width=True):
-        st.session_state['dados'] = pd.DataFrame(columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
+        st.session_state['dados'] = pd.DataFrame(columns=['Data', 'Tipo', 'Categoria', 'Valor'])
         st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
         st.rerun()
 
 # --- EXIBIÇÃO DO PAINEL PRINCIPAL (SEMPRE VISÍVEL) ---
 
-# O sistema agora zera de forma inteligente em vez de sumir
 if not df_filtrado.empty:
     receitas = df_filtrado[df_filtrado['Tipo'] == 'Receita']['Valor'].sum()
     despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa']['Valor'].sum()
@@ -222,7 +211,7 @@ with aba_graficos:
 with aba_dados:
     st.subheader("Histórico de Lançamentos")
     if not df_filtrado.empty:
-        df_mostrar = df_filtrado[['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor']]
+        df_mostrar = df_filtrado[['Data', 'Tipo', 'Categoria', 'Valor']]
         st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
     else:
         st.info("Nenhum dado registrado ainda.")
