@@ -37,17 +37,47 @@ if not df_base.empty:
 with st.sidebar:
     st.header("Adicionar Registro")
     
-    data_input = st.date_input("Data do Lançamento", format="DD/MM/YYYY")
-    tipo = st.selectbox("Tipo", ["Despesa", "Receita"])
+    # Adicionado ícone. Lembre-se: basta clicar na caixa de texto para abrir o calendário visual!
+    data_input = st.date_input("🗓️ Data do Lançamento", format="DD/MM/YYYY")
     
-    if tipo == "Despesa":
-        lista_categorias = ["Água", "Energia", "Manutenção do Carro", "Compras", "Lazer", "Alimentação", "Pets", "Casa", "Outros"]
-        texto_exemplo = "Ex: Pneus, Ração, Supermercado"
+    # Substituição da lista suspensa por botões estilo "Cards"
+    tipo_selecionado = st.radio("Tipo de Registro:", ["🔴 Despesa", "🟢 Receita"], horizontal=True)
+    
+    if tipo_selecionado == "🔴 Despesa":
+        tipo_str = "Despesa"
+        lista_categorias = [
+            "🛒 Compras", 
+            "🍿 Lazer", 
+            "💧 Água", 
+            "⚡ Energia", 
+            "🌐 Internet", 
+            "🐾 Alimentação do Pet", 
+            "🏠 Manutenção de Casa", 
+            "🚗 Manutenção de Carro/Moto", 
+            "📦 Outros"
+        ]
     else:
-        lista_categorias = ["Salário", "Renda Extra", "Investimentos", "Outros"]
-        texto_exemplo = "Ex: Pagamento mensal, Horas extras"
+        tipo_str = "Receita"
+        lista_categorias = ["💼 Salário", "💰 Renda Extra", "📈 Investimentos", "📦 Outros"]
         
     categoria = st.selectbox("Categoria", lista_categorias)
+    
+    # Dicas inteligentes de preenchimento
+    if categoria == "🐾 Alimentação do Pet":
+        texto_exemplo = "Ex: Ração para a cachorra, vacinas"
+    elif categoria == "🚗 Manutenção de Carro/Moto":
+        texto_exemplo = "Ex: Pneus aro 13, óleo, combustível"
+    elif categoria == "🏠 Manutenção de Casa":
+        texto_exemplo = "Ex: Peças para micro-ondas LG, reparos"
+    elif categoria == "🛒 Compras":
+        texto_exemplo = "Ex: Supermercado, farmácia"
+    elif categoria in ["💧 Água", "⚡ Energia", "🌐 Internet"]:
+        texto_exemplo = "Ex: Mensalidade, fatura"
+    elif categoria == "💼 Salário":
+        texto_exemplo = "Ex: Pagamento mensal, adiantamento"
+    else:
+        texto_exemplo = "Descreva o lançamento"
+        
     desc = st.text_input(f"Descrição ({texto_exemplo})")
     valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
 
@@ -57,7 +87,7 @@ with st.sidebar:
         if desc and valor > 0:
             data_formatada = data_input.strftime("%d/%m/%Y")
             
-            novo_dado = pd.DataFrame([[data_formatada, tipo, categoria, desc, valor]], columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
+            novo_dado = pd.DataFrame([[data_formatada, tipo_str, categoria, desc, valor]], columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
             st.session_state['dados'] = pd.concat([st.session_state['dados'], novo_dado], ignore_index=True)
             st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
             
@@ -111,7 +141,6 @@ if not df_filtrado.empty:
     despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa']['Valor'].sum()
     saldo = receitas - despesas
     
-    # Lógica de Diagnóstico
     if receitas > 0:
         pct_gasto = (despesas / receitas) * 100
     else:
@@ -125,20 +154,17 @@ if not df_filtrado.empty:
     else:
         diagnostico = "Nenhuma despesa registrada."
 
-    # Cards Superiores Otimizados
     st.subheader("💰 Resumo do Período")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Entradas (Salário)", f"R$ {receitas:.2f}")
     col2.metric("Saídas (Gastos)", f"R$ {despesas:.2f}")
     col3.metric("Saldo Disponível", f"R$ {saldo:.2f}")
     
-    # Alerta visual se gastar mais do que ganha
     if pct_gasto > 100:
         col4.metric("Renda Comprometida", f"{pct_gasto:.1f}%", "Estourou o orçamento!", delta_color="inverse")
     else:
         col4.metric("Renda Comprometida", f"{pct_gasto:.1f}%")
 
-    # Faixa de Diagnóstico Automático
     if despesas > 0:
         st.warning(f"🔍 **Diagnóstico de Consumo:** O seu maior foco de gasto neste período está sendo com {diagnostico}.")
 
