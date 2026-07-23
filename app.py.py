@@ -37,14 +37,12 @@ if not df_base.empty:
 with st.sidebar:
     st.header("Adicionar Registro")
     
-    # Sem o st.form, as mudanças aqui atualizam o resto na mesma hora!
     data_input = st.date_input("Data do Lançamento", format="DD/MM/YYYY")
     tipo = st.selectbox("Tipo", ["Despesa", "Receita"])
     
-    # Lógica inteligente para mudar categorias E o texto da descrição
     if tipo == "Despesa":
         lista_categorias = ["Água", "Energia", "Manutenção do Carro", "Compras", "Lazer", "Alimentação", "Pets", "Casa", "Outros"]
-        texto_exemplo = "Ex: Pneus aro 13, Ração, Conta de luz"
+        texto_exemplo = "Ex: Pneus, Ração, Supermercado"
     else:
         lista_categorias = ["Salário", "Renda Extra", "Investimentos", "Outros"]
         texto_exemplo = "Ex: Pagamento mensal, Horas extras"
@@ -53,7 +51,6 @@ with st.sidebar:
     desc = st.text_input(f"Descrição ({texto_exemplo})")
     valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
 
-    # Botão padrão (substitui o antigo form_submit_button)
     cadastrar = st.button("Registrar Lançamento", use_container_width=True)
 
     if cadastrar:
@@ -108,15 +105,42 @@ with st.sidebar:
         st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
         st.rerun()
 
+# --- EXIBIÇÃO DO PAINEL PRINCIPAL ---
 if not df_filtrado.empty:
     receitas = df_filtrado[df_filtrado['Tipo'] == 'Receita']['Valor'].sum()
     despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa']['Valor'].sum()
     saldo = receitas - despesas
+    
+    # Lógica de Diagnóstico
+    if receitas > 0:
+        pct_gasto = (despesas / receitas) * 100
+    else:
+        pct_gasto = 0.0
+        
+    df_despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa']
+    if not df_despesas.empty:
+        cat_maior_gasto = df_despesas.groupby('Categoria')['Valor'].sum().idxmax()
+        valor_maior_gasto = df_despesas.groupby('Categoria')['Valor'].sum().max()
+        diagnostico = f"**{cat_maior_gasto}** (R$ {valor_maior_gasto:.2f})"
+    else:
+        diagnostico = "Nenhuma despesa registrada."
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total de Receitas", f"R$ {receitas:.2f}")
-    col2.metric("Total de Despesas", f"R$ {despesas:.2f}")
-    col3.metric("Saldo do Período", f"R$ {saldo:.2f}") 
+    # Cards Superiores Otimizados
+    st.subheader("💰 Resumo do Período")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Entradas (Salário)", f"R$ {receitas:.2f}")
+    col2.metric("Saídas (Gastos)", f"R$ {despesas:.2f}")
+    col3.metric("Saldo Disponível", f"R$ {saldo:.2f}")
+    
+    # Alerta visual se gastar mais do que ganha
+    if pct_gasto > 100:
+        col4.metric("Renda Comprometida", f"{pct_gasto:.1f}%", "Estourou o orçamento!", delta_color="inverse")
+    else:
+        col4.metric("Renda Comprometida", f"{pct_gasto:.1f}%")
+
+    # Faixa de Diagnóstico Automático
+    if despesas > 0:
+        st.warning(f"🔍 **Diagnóstico de Consumo:** O seu maior foco de gasto neste período está sendo com {diagnostico}.")
 
     st.divider()
 
@@ -126,14 +150,13 @@ if not df_filtrado.empty:
         col_grafico1, col_grafico2 = st.columns(2)
         
         with col_grafico1:
-            st.subheader("Despesas por Categoria")
-            df_despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa']
+            st.subheader("Onde o dinheiro está indo?")
             if not df_despesas.empty:
                 resumo_cat = df_despesas.groupby('Categoria')['Valor'].sum().reset_index()
                 fig1 = px.pie(resumo_cat, values='Valor', names='Categoria', hole=0.4)
                 st.plotly_chart(fig1, use_container_width=True)
             else:
-                st.info("Nenhuma despesa registrada para este período.")
+                st.info("Nenhuma despesa para exibir.")
 
         with col_grafico2:
             st.subheader("Entradas vs Saídas")
@@ -143,7 +166,7 @@ if not df_filtrado.empty:
             st.plotly_chart(fig2, use_container_width=True)
 
     with aba_dados:
-        st.subheader("Histórico do Período")
+        st.subheader("Histórico de Lançamentos")
         df_mostrar = df_filtrado[['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor']]
         st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
 
