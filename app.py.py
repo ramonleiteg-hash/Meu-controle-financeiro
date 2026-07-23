@@ -150,65 +150,79 @@ with st.sidebar:
         st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
         st.rerun()
 
+# --- EXIBIÇÃO DO PAINEL PRINCIPAL (SEMPRE VISÍVEL) ---
+
+# O sistema agora zera de forma inteligente em vez de sumir
 if not df_filtrado.empty:
     receitas = df_filtrado[df_filtrado['Tipo'] == 'Receita']['Valor'].sum()
     despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa']['Valor'].sum()
-    saldo = receitas - despesas
+else:
+    receitas = 0.0
+    despesas = 0.0
+
+saldo = receitas - despesas
+
+if receitas > 0:
+    pct_gasto = (despesas / receitas) * 100
+else:
+    pct_gasto = 0.0
     
-    if receitas > 0:
-        pct_gasto = (despesas / receitas) * 100
-    else:
-        pct_gasto = 0.0
-        
-    df_despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa']
-    if not df_despesas.empty:
-        cat_maior_gasto = df_despesas.groupby('Categoria')['Valor'].sum().idxmax()
-        valor_maior_gasto = df_despesas.groupby('Categoria')['Valor'].sum().max()
-        diagnostico = f"**{cat_maior_gasto}** (R$ {valor_maior_gasto:.2f})"
-    else:
-        diagnostico = "Nenhuma despesa registrada."
+df_despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa'] if not df_filtrado.empty else pd.DataFrame()
 
-    st.subheader("💰 Resumo do Período")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Entradas (Salário)", f"R$ {receitas:.2f}")
-    col2.metric("Saídas (Gastos)", f"R$ {despesas:.2f}")
-    col3.metric("Saldo Disponível", f"R$ {saldo:.2f}")
+if not df_despesas.empty:
+    cat_maior_gasto = df_despesas.groupby('Categoria')['Valor'].sum().idxmax()
+    valor_maior_gasto = df_despesas.groupby('Categoria')['Valor'].sum().max()
+    diagnostico = f"**{cat_maior_gasto}** (R$ {valor_maior_gasto:.2f})"
+    tem_diagnostico = True
+else:
+    tem_diagnostico = False
+
+st.subheader("💰 Resumo do Período")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Entradas (Salário)", f"R$ {receitas:.2f}")
+col2.metric("Saídas (Gastos)", f"R$ {despesas:.2f}")
+col3.metric("Saldo Disponível", f"R$ {saldo:.2f}")
+
+if pct_gasto > 100:
+    col4.metric("Renda Comprometida", f"{pct_gasto:.1f}%", "Estourou o orçamento!", delta_color="inverse")
+else:
+    col4.metric("Renda Comprometida", f"{pct_gasto:.1f}%")
+
+if tem_diagnostico:
+    st.warning(f"🔍 **Diagnóstico de Consumo:** O seu maior foco de gasto neste período está sendo com {diagnostico}.")
+else:
+    st.info("🔍 Faça seus lançamentos para ver o diagnóstico automático aqui.")
+
+st.divider()
+
+aba_graficos, aba_dados = st.tabs(["📈 Visão Gráfica", "📋 Tabela de Dados"])
+
+with aba_graficos:
+    col_grafico1, col_grafico2 = st.columns(2)
     
-    if pct_gasto > 100:
-        col4.metric("Renda Comprometida", f"{pct_gasto:.1f}%", "Estourou o orçamento!", delta_color="inverse")
-    else:
-        col4.metric("Renda Comprometida", f"{pct_gasto:.1f}%")
+    with col_grafico1:
+        st.subheader("Onde o dinheiro está indo?")
+        if not df_despesas.empty:
+            resumo_cat = df_despesas.groupby('Categoria')['Valor'].sum().reset_index()
+            fig1 = px.pie(resumo_cat, values='Valor', names='Categoria', hole=0.4)
+            st.plotly_chart(fig1, use_container_width=True)
+        else:
+            st.info("Nenhuma despesa para exibir no gráfico.")
 
-    if despesas > 0:
-        st.warning(f"🔍 **Diagnóstico de Consumo:** O seu maior foco de gasto neste período está sendo com {diagnostico}.")
-
-    st.divider()
-
-    aba_graficos, aba_dados = st.tabs(["📈 Visão Gráfica", "📋 Tabela de Dados"])
-
-    with aba_graficos:
-        col_grafico1, col_grafico2 = st.columns(2)
-        
-        with col_grafico1:
-            st.subheader("Onde o dinheiro está indo?")
-            if not df_despesas.empty:
-                resumo_cat = df_despesas.groupby('Categoria')['Valor'].sum().reset_index()
-                fig1 = px.pie(resumo_cat, values='Valor', names='Categoria', hole=0.4)
-                st.plotly_chart(fig1, use_container_width=True)
-            else:
-                st.info("Nenhuma despesa para exibir.")
-
-        with col_grafico2:
-            st.subheader("Entradas vs Saídas")
+    with col_grafico2:
+        st.subheader("Entradas vs Saídas")
+        if not df_filtrado.empty:
             resumo_tipo = df_filtrado.groupby('Tipo')['Valor'].sum().reset_index()
             fig2 = px.bar(resumo_tipo, x='Tipo', y='Valor', color='Tipo',
                           color_discrete_map={'Receita':'#2ecc71', 'Despesa':'#e74c3c'})
             st.plotly_chart(fig2, use_container_width=True)
+        else:
+             st.info("Adicione receitas e despesas para gerar este gráfico.")
 
-    with aba_dados:
-        st.subheader("Histórico de Lançamentos")
+with aba_dados:
+    st.subheader("Histórico de Lançamentos")
+    if not df_filtrado.empty:
         df_mostrar = df_filtrado[['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor']]
         st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
-
-else:
-    st.info("Nenhum dado encontrado. Faça seu primeiro lançamento usando a barra lateral à esquerda.")
+    else:
+        st.info("Nenhum dado registrado ainda.")
