@@ -20,12 +20,14 @@ def carregar_dados():
     else:
         return pd.DataFrame(columns=['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor'])
 
-st.set_page_config(page_title="Controle Financeiro", layout="wide")
+# Título da aba do navegador
+st.set_page_config(page_title="Meu Controle Financeiro", layout="wide")
 
 if 'dados' not in st.session_state:
     st.session_state['dados'] = carregar_dados()
 
-st.title("📊 Dashboard de Controle Financeiro")
+# Título principal da tela COM o ícone do gráfico
+st.title("📊 Meu Controle Financeiro")
 
 df_base = st.session_state['dados'].copy()
 
@@ -118,19 +120,16 @@ with st.sidebar:
     st.divider()
     st.header("⚙️ Manutenção do Sistema")
     
-    # --- NOVA FERRAMENTA: EXCLUIR REGISTRO ESPECÍFICO ---
     with st.expander("🎯 Excluir um lançamento específico"):
         if not st.session_state['dados'].empty:
             opcoes = []
             for idx, row in st.session_state['dados'].iterrows():
-                # Formata a linha de uma forma fácil de ler, escondendo o ID no começo
                 texto = f"ID: {idx} | {row['Data']} - {row['Descrição']} (R$ {row['Valor']})"
                 opcoes.append(texto)
             
             registro_selecionado = st.selectbox("Escolha o registro para apagar:", opcoes)
             
             if st.button("❌ Apagar este registro", use_container_width=True):
-                # Pega apenas o número do ID selecionado para apagar a linha correta
                 id_para_apagar = int(registro_selecionado.split(" |")[0].replace("ID: ", ""))
                 st.session_state['dados'] = st.session_state['dados'].drop(id_para_apagar).reset_index(drop=True)
                 st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
@@ -138,7 +137,6 @@ with st.sidebar:
         else:
             st.info("Nenhum dado para excluir.")
 
-    # Botões antigos mantidos para operações rápidas
     if st.button("⏪ Desfazer Último", use_container_width=True):
         if not st.session_state['dados'].empty:
             st.session_state['dados'] = st.session_state['dados'].iloc[:-1] 
@@ -152,7 +150,6 @@ with st.sidebar:
         st.session_state['dados'].to_csv(ARQUIVO_DADOS, index=False)
         st.rerun()
 
-# --- EXIBIÇÃO DO PAINEL PRINCIPAL ---
 if not df_filtrado.empty:
     receitas = df_filtrado[df_filtrado['Tipo'] == 'Receita']['Valor'].sum()
     despesas = df_filtrado[df_filtrado['Tipo'] == 'Despesa']['Valor'].sum()
